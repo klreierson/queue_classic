@@ -7,6 +7,7 @@ require "queue_classic/queries"
 require "queue_classic/queue"
 require "queue_classic/worker"
 require "queue_classic/setup"
+require "queue_classic/railtie" if defined?(Rails)
 
 module QC
   Root = File.expand_path("..", File.dirname(__FILE__))
