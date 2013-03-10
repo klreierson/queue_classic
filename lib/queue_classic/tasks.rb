@@ -1,4 +1,6 @@
-task :environment
+task :environment do
+  ActiveRecord::Base if defined?(Rails)
+end
 
 namespace :jobs do
   desc "Alias for qc:work"
