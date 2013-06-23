@@ -10,7 +10,7 @@ module QC
     end
 
     def adapter
-      @adapter ||= PGAdapter.new
+      @adapter ||= PGAdapter.from_env
     end
 
     def execute(stmt, *params)
