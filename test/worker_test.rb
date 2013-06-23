@@ -118,7 +118,7 @@ class WorkerTest < QCTest
     assert_equal(
       1,
       QC::Conn.execute("SELECT count(*) from pg_stat_activity where datname = current_database()")["count"].to_i,
-      "Multiple connections found -- are there open connections to #{ QC::Conn.db_url } in other terminals?"
+      "Multiple connections found -- are there open connections to #{ QC::Conn.adapter.db_url } in other terminals?"
     )
   end
 

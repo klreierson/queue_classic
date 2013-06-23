@@ -7,9 +7,7 @@ module QC
     end
 
     initializer "queue_classic.configure" do
-      ActiveSupport.on_load(:active_record) do
-        QC::Conn.connection = ActiveRecord::Base.connection.raw_connection
-      end
+      QC::Conn.adapter = QC::Conn::ActiveRecordAdapter.new
     end
   end
 end

@@ -6,6 +6,7 @@ ENV["DATABASE_URL"] ||= "postgres:///queue_classic_test"
 require "queue_classic"
 require "stringio"
 require "minitest/autorun"
+require "minitest/mock"
 
 class QCTest < Minitest::Test
 
@@ -47,6 +48,15 @@ BEGIN
 END;
 $$;
 EOS
+  end
+
+  def mock_adapter
+    current_adapter = QC::Conn.adapter
+    adapter = Minitest::Mock.new
+    QC::Conn.adapter = adapter
+    yield adapter
+  ensure
+    QC::Conn.adapter = current_adapter
   end
 
   def capture_debug_output

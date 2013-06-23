@@ -67,17 +67,14 @@ class QueueTest < QCTest
     queue = QC::Queue.new("queue_classic_jobs", false)
     queue.enqueue("Klass.method")
     assert_equal(1, queue.count)
-    connection = QC::Conn.connection
-    saved_method = connection.method(:exec)
-    def connection.exec(*args)
-      raise PGError
+    mock_adapter do |adapter|
+      def adapter.exec_query(*args); raise PGError end
+
+      adapter.expect(:disconnect, [])
+      assert_raises(PG::Error) { queue.enqueue("Klass.other_method") }
+      adapter.verify
     end
-    assert_raises(PG::Error) { queue.enqueue("Klass.other_method") }
-    assert_equal(1, queue.count)
-    queue.enqueue("Klass.other_method")
-    assert_equal(2, queue.count)
   rescue PG::Error
-    QC::Conn.disconnect
     assert false, "Expected to QC repair after connection error"
   end
 
