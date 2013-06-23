@@ -13,6 +13,18 @@ module QC
         connection.exec(stmt, params)
       end
 
+      def wait_for_notify(t)
+        connection.wait_for_notify(t) do |event, pid, msg|
+          QC.log(:at => "received_notification")
+        end
+      end
+
+      def drain_notify
+        until connection.notifies.nil?
+          QC.log(:at => "drain_notifications")
+        end
+      end
+
       def disconnect
         begin connection.finish
         ensure @connection = nil

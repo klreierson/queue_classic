@@ -66,15 +66,11 @@ module QC
     end
 
     def wait_for_notify(t)
-      connection.wait_for_notify(t) do |event, pid, msg|
-        QC.log(:at => "received_notification")
-      end
+      adapter.wait_for_notify(t)
     end
 
     def drain_notify
-      until connection.notifies.nil?
-        QC.log(:at => "drain_notifications")
-      end
+      adapter.drain_notify
     end
   end
 end

@@ -122,4 +122,17 @@ class WorkerTest < QCTest
     )
   end
 
+  def test_listening_worker_waits_for_jobs
+    worker = TestWorker.new(listening_worker: true)
+    queue = QC::Queue.new(QC::QUEUE, true)
+
+    Thread.new do
+      sleep 0.2
+      queue.enqueue("TestObject.no_args")
+    end
+    worker.work
+    assert_equal(0, QC.count)
+    assert_equal(0, worker.failed_count)
+  end
+
 end

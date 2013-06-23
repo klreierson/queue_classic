@@ -1,10 +1,6 @@
 module QC
   module Conn
-    class ActiveRecordAdapter
-      def exec_query(stmt, params)
-        connection.exec(stmt, params)
-      end
-
+    class ActiveRecordAdapter < PGAdapter
       def connection
         ActiveRecord::Base.connection.raw_connection
       end
