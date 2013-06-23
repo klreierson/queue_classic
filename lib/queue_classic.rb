@@ -2,6 +2,7 @@ require "pg"
 require "uri"
 require "json"
 
+require "queue_classic/adapters/pg_adapter"
 require "queue_classic/conn"
 require "queue_classic/queries"
 require "queue_classic/queue"
@@ -17,7 +18,7 @@ module QC
 
   # You can use the APP_NAME to query for
   # postgres related process information in the
-  # pg_stat_activity table. 
+  # pg_stat_activity table.
   APP_NAME = ENV["QC_APP_NAME"] || "queue_classic"
 
   # Why do you want to change the table name?

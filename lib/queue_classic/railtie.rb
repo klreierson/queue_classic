@@ -7,6 +7,7 @@ module QC
     end
 
     initializer "queue_classic.configure" do
+      require 'queue_classic/adapters/active_record_adapter'
       QC::Conn.adapter = QC::Conn::ActiveRecordAdapter.new
     end
   end
