@@ -127,10 +127,12 @@ class WorkerTest < QCTest
     queue = QC::Queue.new(QC::QUEUE, true)
 
     Thread.new do
-      sleep 0.2
+      sleep 0.1
       queue.enqueue("TestObject.no_args")
     end
+
     worker.work
+
     assert_equal(0, QC.count)
     assert_equal(0, worker.failed_count)
   end

@@ -17,4 +17,21 @@ class PGAdapterTest < QCTest
     normalized = QC::Conn::PGAdapter.normalize_db_url(URI.parse(database_url))
     assert_equal [nil, 5432, nil, "", "my_db", nil, nil], normalized
   end
+
+  def test_repair_after_error
+    adapter = QC::Conn::PGAdapter.from_env
+    assert_equal({"number"=>"1"}, adapter.execute("SELECT 1 as number"))
+
+    connection = adapter.send(:connection)
+    def connection.exec(*args); raise PGError end
+
+    assert_raises(PG::Error) do
+      adapter.execute("SELECT 1 as number")
+    end
+    assert_equal({"number"=>"1"}, adapter.execute("SELECT 1 as number"))
+  rescue PG::Error
+    adapter.send(:disconnect)
+    assert false, "Expected to QC repair after connection error"
+  end
+
 end
