@@ -18,10 +18,11 @@ class QCTest < Minitest::Test
   end
 
   def init_db(table_name="queue_classic_jobs")
-    QC::Conn.execute("SET client_min_messages TO 'warning'")
+    c = QC::Conn.new
+    c.execute("SET client_min_messages TO 'warning'")
     QC::Setup.drop
     QC::Setup.create
-    QC::Conn.execute(<<EOS)
+    c.execute(<<EOS)
 DO $$
 -- Set initial sequence to a large number to test the entire toolchain
 -- works on integers with higher bits set.
@@ -47,6 +48,7 @@ BEGIN
 END;
 $$;
 EOS
+    c.disconnect
   end
 
   def capture_debug_output

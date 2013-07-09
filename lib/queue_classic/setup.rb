@@ -1,17 +1,17 @@
 module QC
   module Setup
     def self.create
-      Conn.transaction do
-        Conn.execute(File.read(CreateTable))
-        Conn.execute(File.read(SqlFunctions))
-      end
+      c = Conn.new
+      c.execute(File.read(CreateTable))
+      c.execute(File.read(SqlFunctions))
+      c.disconnect
     end
 
     def self.drop
-      Conn.transaction do
-        Conn.execute("DROP TABLE IF EXISTS queue_classic_jobs CASCADE")
-        Conn.execute(File.read(DropSqlFunctions))
-      end
+      c = Conn.new
+      c.execute("DROP TABLE IF EXISTS queue_classic_jobs CASCADE")
+      c.execute(File.read(DropSqlFunctions))
+      c.disconnect
     end
   end
 end

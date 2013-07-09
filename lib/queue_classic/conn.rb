@@ -1,24 +1,43 @@
 require 'thread'
 
 module QC
-  module Conn
-    extend self
-    @exec_mutex = Mutex.new
+
+  class Pool
+    def initialize(sz=1)
+      @conns = SizedQueue.new(sz)
+      sz.times {@conns.enq(Conn.new)}
+    end
+
+    def checkout
+      if block_given?
+        c = @conns.deq
+        begin result = yield(c)
+        ensure @conns.enq(c)
+        end
+        return result
+      else
+        @conns.deq
+      end
+    end
+  end
+
+  class Conn
+    attr_accessor :c
+    def initialize
+      connect
+    end
 
     def execute(stmt, *params)
-      @exec_mutex.synchronize do
-        log(:at => "exec_sql", :sql => stmt.inspect)
-        begin
-          params = nil if params.empty?
-          r = connection.exec(stmt, params)
-          result = []
-          r.each {|t| result << t}
-          result.length > 1 ? result : result.pop
-        rescue PGError => e
-          log(:error => e.inspect)
-          disconnect
-          raise
-        end
+      log(:at => "exec_sql", :sql => stmt.inspect)
+      begin
+        params = nil if params.empty?
+        r = @c.exec(stmt, params)
+        result = []
+        r.each {|t| result << t}
+        result.length > 1 ? result : result.pop
+      rescue PG::Error => e
+        disconnect
+        raise
       end
     end
 
@@ -29,48 +48,19 @@ module QC
       drain_notify
     end
 
-    def transaction
-      begin
-        execute("BEGIN")
-        yield
-        execute("COMMIT")
-      rescue Exception
-        execute("ROLLBACK")
-        raise
-      end
-    end
-
-    def transaction_idle?
-      connection.transaction_status == PGconn::PQTRANS_IDLE
-    end
-
-    def connection
-      @connection ||= connect
-    end
-
-    def connection=(connection)
-      unless connection.is_a? PG::Connection
-        c = connection.class
-        err = "connection must be an instance of PG::Connection, but was #{c}"
-        raise(ArgumentError, err)
-      end
-      @connection = connection
-    end
-
     def disconnect
-      begin connection.finish
-      ensure @connection = nil
+      begin @c.finish
+      ensure @c = nil
       end
     end
 
     def connect
       log(:at => "establish_conn")
-      conn = PGconn.connect(*normalize_db_url(db_url))
-      if conn.status != PGconn::CONNECTION_OK
-        log(:error => conn.error)
+      @c = PGconn.connect(*normalize_db_url(db_url))
+      if @c.status != PGconn::CONNECTION_OK
+        log(:error => @c.error)
       end
-      conn.exec("SET application_name = '#{QC::APP_NAME}'")
-      conn
+      @c.exec("SET application_name = '#{QC::APP_NAME}'")
     end
 
     def normalize_db_url(url)
@@ -103,12 +93,12 @@ module QC
 
     def wait_for_notify(t)
       Array.new.tap do |msgs|
-        connection.wait_for_notify(t) {|event, pid, msg| msgs << msg}
+        @c.wait_for_notify(t) {|event, pid, msg| msgs << msg}
       end
     end
 
     def drain_notify
-      until connection.notifies.nil?
+      until @c.notifies.nil?
         log(:at => "drain_notifications")
       end
     end

@@ -3,7 +3,6 @@ require "uri"
 require "json"
 
 require "queue_classic/conn"
-require "queue_classic/queries"
 require "queue_classic/queue"
 require "queue_classic/worker"
 require "queue_classic/setup"
@@ -62,7 +61,7 @@ module QC
 
   def self.default_queue
     @default_queue ||= begin
-      Queue.new(QUEUE)
+      Queue.new(QUEUE, TOP_BOUND, Pool.new)
     end
   end
 

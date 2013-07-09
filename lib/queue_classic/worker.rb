@@ -1,25 +1,26 @@
+require 'thread'
+
 module QC
   class Worker
 
-    attr_accessor :queue, :running
+    attr_accessor :queue, :running, :limiter
     # In the case no arguments are passed to the initializer,
     # the defaults are pulled from the environment variables.
     def initialize(args={})
-      @q_name           = args[:q_name]           ||= QC::QUEUE
-      @top_bound        = args[:top_bound]        ||= QC::TOP_BOUND
-      @fork_worker      = args[:fork_worker]      ||= QC::FORK_WORKER
-      @running = true
-      @queue = Queue.new((args[:q_name] || QUEUE), args[:top_bound])
+      @q_name      = args[:q_name]      ||= QC::QUEUE
+      @top_bound   = args[:top_bound]   ||= QC::TOP_BOUND
+      @fork_worker = args[:fork_worker] ||= QC::FORK_WORKER
+      @limiter     = SizedQueue.new((args[:concurrency] || 5).to_i)
+      @queue = Queue.new((args[:q_name] || QUEUE), args[:top_bound], Pool.new)
       log(args.merge(:at => "worker_initialized"))
+      @running = true
     end
 
     # Start a loop and work jobs indefinitely.
     # Call this method to start the worker.
     # This is the easiest way to start working jobs.
-    def start
-      while @running
-        @fork_worker ? fork_and_work : work
-      end
+    def start(n=nil)
+      n.nil? ? loop {work} : n.times.map {work}
     end
 
     # Call this method to stop the worker.
@@ -29,35 +30,23 @@ module QC
       @running = false
     end
 
-    # This method will tell the ruby process to FORK.
-    # Define setup_child to hook into the forking process.
-    # Using setup_child is good for re-establishing database connections.
-    def fork_and_work
-      @cpid = fork {setup_child; work}
-      log(:at => :fork, :pid => @cpid)
-      Process.wait(@cpid)
-    end
-
     # This method will lock a job & process the job.
     def work
-      if job = lock_job
-        QC.log_yield(:at => "work", :job => job[:id]) do
-          process(job)
+      @limiter.enq(1)
+      Thread.new do
+        begin Process.wait fork {after_fork; process(get_job)}
+        ensure @limiter.deq
         end
       end
     end
 
-    # Attempt to lock a job in the queue's table.
-    # Return a hash when a job is locked.
-    # Caller responsible for deleting the job when finished.
-    def lock_job
-      log(:at => "lock_job")
-      job = nil
+    def get_job
       while @running
-        break if job = @queue.lock
-        Conn.wait(@queue.name)
+        if job = @queue.lock
+          return job
+        end
+        @queue.wait
       end
-      job
     end
 
     # A job is processed by evaluating the target code.
@@ -79,9 +68,9 @@ module QC
     # to grab the ruby object from memory. We send the method to
     # the object and pass the args.
     def call(job)
-      args = job[:args]
       klass = eval(job[:method].split(".").first)
       message = job[:method].split(".").last
+      args = job[:args]
       klass.send(message, *args)
     end
 
@@ -94,10 +83,11 @@ module QC
     # This method should be overriden if
     # your worker is forking and you need to
     # re-establish database connections
-    def setup_child
+    def after_fork 
+      @queue.pool = Pool.new
       log(:at => "setup_child")
     end
-
+    
     def log(data)
       QC.log(data)
     end
